@@ -25,6 +25,13 @@ const text_config = gx.TextCfg{
 	vertical_align: .top
 }
 
+const text_config_col_nums = gx.TextCfg{
+	color: gx.gray
+	size: cell_size / 3
+	align: .center
+	vertical_align: .top
+}
+
 const circle_radius = f32(50.0)
 const circle_empty_cell = gx.rgb(15, 15, 15) // grey
 const circle_player1_non_connected = gx.dark_red
@@ -34,7 +41,7 @@ const circle_player1_connected = gx.rgb(238, 75, 43)
 const circle_player2_connected = gx.rgb(255, 255, 102)
 
 const instructions_x_coord = (cell_size * game_board_width) / 2
-const instructions_y_coord = 25
+const instructions_y_coord = cell_size / 20
 
 /////////////
 // structs //
@@ -52,6 +59,8 @@ mut:
 	app_state            AppState    = .play
 	game_board           [][]u8      = new_game_board.clone()
 	current_player       u8 = 1
+	player1_score        u8
+	player2_score        u8
 	column_number        u8
 	row_number           u8
 	valid_move_count     u8
@@ -63,8 +72,14 @@ mut:
 // draw functoins //
 ////////////////////
 
-fn (app App) draw_header_instructions_message(message string) {
-	app.gg.draw_text(instructions_x_coord, instructions_y_coord, message, text_config)
+fn (app App) draw_header_instructions_message(title string, message string) {
+	app.gg.draw_text(instructions_x_coord, instructions_y_coord, title, text_config)
+	app.gg.draw_text(instructions_x_coord, instructions_y_coord + 30, message, text_config)
+	mut x_coord_col_nums := 45
+	for i in 0..game_board_width {
+		app.gg.draw_text(x_coord_col_nums, instructions_y_coord + 60, (i + 1).str(), text_config_col_nums)
+		x_coord_col_nums = x_coord_col_nums + 100
+	}
 }
 
 fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
@@ -74,13 +89,13 @@ fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
 fn (mut app App) draw_header() {
 	match app.app_state {
 		.tie {
-			app.draw_header_instructions_message("Tie Game. Press 'r' to restart.")
+			app.draw_header_instructions_message("Tie Game",  "Press 'r' to restart")
 		}
 		.won {
-			app.draw_header_instructions_message("Player ${app.current_player} won. Press 'r' to restart.")
+			app.draw_header_instructions_message("Player ${app.current_player} won", "Press 'r' to restart")
 		}
 		.play {
-			app.draw_header_instructions_message('Player ${app.current_player}: press a key 1-7.')
+			app.draw_header_instructions_message("Player ${app.current_player}", "Press a key between 1-7")
 		}
 	}
 }
@@ -103,10 +118,7 @@ fn (mut app App) draw_board() {
 				app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_player2_non_connected)
 			}
 			y_coord = y_coord + 100.0
-			// app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_player1_connected)
-			// break
 		}
-		// break
 		y_coord = f32(150.0)
 		x_coord = x_coord - 100.0
 	}
@@ -119,15 +131,11 @@ fn (mut app App) draw_won_circles() {
 	for column_number, column in app.game_board {
 		for row_number, _ in column {
 			if [u8(column_number), u8(row_number)] in app.winning_coords {
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 0.5, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 1, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 1.5, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 2, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 2.5, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 3, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 3.5, gx.yellow)
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 4, gx.yellow)
+				mut inc := f32(0.0)
+				for _ in 0 .. 7 {
+					app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + inc, gx.yellow)
+					inc = inc + 0.5
+				}
 			}
 			y_coord = y_coord + 100.0
 		}
