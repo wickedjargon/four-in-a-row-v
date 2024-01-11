@@ -148,8 +148,11 @@ fn (mut app App) game_won_vertical() {
 	if consecutives_count > 3 {
 		app.app_state = .won
 		for row_number := app.row_number; row_number < game_board_height; row_number++ {
-			dump(row_number)
-			app.winning_coords << [u8(app.column_number), u8(row_number)]
+			if app.game_board[app.column_number][row_number] == app.current_player {
+				app.winning_coords << [u8(app.column_number), u8(row_number)]
+			} else {
+				break
+			}
 		}
 	}
 }
