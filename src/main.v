@@ -30,7 +30,7 @@ const circle_empty_cell = gx.rgb(15, 15, 15) // grey
 const circle_player1_non_connected = gx.dark_red
 const circle_player2_non_connected = gx.rgb(204, 204, 0)
 
-const circle_player1_connected = gx.light_red
+const circle_player1_connected = gx.rgb(238, 75, 43)
 const circle_player2_connected = gx.rgb(255, 255, 102)
 
 const instructions_x_coord = (cell_size * game_board_width) / 2
@@ -48,14 +48,15 @@ enum AppState {
 
 struct App {
 mut:
-	gg               &gg.Context = unsafe { nil }
-	app_state        AppState    = .play
-	game_board       [][]u8      = new_game_board
-	current_player   u8 = 1
-	column_number    u8
-	row_number       u8
-	valid_move_count u8
-	winning_coords   [][]u8 = new_winning_coords
+	gg                   &gg.Context = unsafe { nil }
+	app_state            AppState    = .play
+	game_board           [][]u8      = new_game_board
+	current_player       u8 = 1
+	column_number        u8
+	row_number           u8
+	valid_move_count     u8
+	winning_coords       [][]u8 = new_winning_coords
+	winning_coords_debug [][]u8 = new_winning_coords
 }
 
 ////////////////////
@@ -64,6 +65,10 @@ mut:
 
 fn (app App) draw_header_instructions_message(message string) {
 	app.gg.draw_text(instructions_x_coord, instructions_y_coord, message, text_config)
+}
+
+fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
+	app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, color)
 }
 
 fn (mut app App) draw_header() {
@@ -80,14 +85,10 @@ fn (mut app App) draw_header() {
 	}
 }
 
-fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
-	app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, color)
-}
-
-fn (app App) draw_board() {
+fn (mut app App) draw_board() {
 	// draw background
-	app.gg.draw_rect_filled(0.0, cell_size, cell_size * game_board_width, cell_size * game_board_height,
-		gx.dark_blue)
+	app.gg.draw_rounded_rect_filled(0.0, cell_size, cell_size * game_board_width, cell_size * game_board_height,
+		circle_radius / 2, gx.dark_blue)
 
 	// draw circles
 	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
@@ -95,11 +96,31 @@ fn (app App) draw_board() {
 	for column in app.game_board {
 		for cell in column {
 			if cell == 0 {
-				app.draw_circle(x_coord, y_coord, circle_empty_cell)
+				app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_empty_cell)
 			} else if cell == 1 {
-				app.draw_circle(x_coord, y_coord, circle_player1_non_connected)
+				app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_player1_non_connected)
 			} else if cell == 2 {
 				app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_player2_non_connected)
+			}
+			y_coord = y_coord + 100.0
+			// app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, circle_player1_connected)
+			// break
+		}
+		// break
+		y_coord = f32(150.0)
+		x_coord = x_coord - 100.0
+	}
+}
+
+fn (mut app App) draw_won_circles() {
+	// draw circles
+	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
+	mut y_coord := f32(150.0)
+	mut loop_counter := 0
+	for column_number, column in app.game_board {
+		for row_number, _ in column {
+			if [u8(column_number), u8(row_number)] in app.winning_coords {
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius, gx.white)
 			}
 			y_coord = y_coord + 100.0
 		}
@@ -119,7 +140,8 @@ fn (mut app App) game_won_vertical() {
 	}
 	if consecutives_count > 3 {
 		app.app_state = .won
-		for row_number, _ in app.game_board[app.column_number][app.row_number..game_board_height] {
+		for row_number := app.row_number; row_number < game_board_height; row_number++ {
+			dump(row_number)
 			app.winning_coords << [u8(app.column_number), u8(row_number)]
 		}
 	}
@@ -142,7 +164,7 @@ fn (mut app App) game_won_horizontal() {
 		} else {
 			break
 		}
-		// prevents integer overflow
+		// prevents integer underflow
 		if column_number == 0 {
 			break
 		}
@@ -150,9 +172,25 @@ fn (mut app App) game_won_horizontal() {
 	// each loop counts app.column_number once. so we use 4 here, not 3.
 	if consecutives_count > 4 {
 		app.app_state = .won
-		// for column_number in app.column_number .. game_board_width {
-		// 	app.winning_coords << [column_number, app.row_number]
-		// }
+		for column_number in app.column_number .. game_board_width {
+			if app.game_board[column_number][app.row_number] == app.current_player {
+				app.winning_coords << [column_number, app.row_number]
+			} else {
+				break
+			}
+		}
+
+		for column_number := app.column_number; column_number >= 0; column_number-- {
+			if app.game_board[column_number][app.row_number] == app.current_player {
+				app.winning_coords << [column_number, app.row_number]
+			} else {
+				break
+			}
+			// prevents integer underflow
+			if column_number == 0 {
+				break
+			}
+		}
 	}
 }
 
@@ -321,9 +359,7 @@ fn (mut app App) update_game(column_number u8) {
 		app.update_app_state()
 		if app.app_state == .play {
 			app.current_player = if app.current_player == u8(1) { u8(2) } else { u8(1) }
-		} else {
 		}
-	} else {
 	}
 }
 
@@ -355,26 +391,26 @@ fn on_event(e &gg.Event, mut app App) {
 			.q {
 				app.gg.quit()
 			}
+			._0 {
+				app.update_game(u8(0))
+			}
 			._1 {
-				app.update_game(u8(6))
-			}
-			._2 {
-				app.update_game(u8(5))
-			}
-			._3 {
-				app.update_game(u8(4))
-			}
-			._4 {
-				app.update_game(u8(3))
-			}
-			._5 {
-				app.update_game(u8(2))
-			}
-			._6 {
 				app.update_game(u8(1))
 			}
-			._7 {
-				app.update_game(u8(0))
+			._2 {
+				app.update_game(u8(2))
+			}
+			._3 {
+				app.update_game(u8(3))
+			}
+			._4 {
+				app.update_game(u8(4))
+			}
+			._5 {
+				app.update_game(u8(5))
+			}
+			._6 {
+				app.update_game(u8(6))
 			}
 			else {}
 		}
@@ -395,6 +431,9 @@ fn frame(mut app App) {
 	app.gg.begin()
 	app.draw_header()
 	app.draw_board()
+	if app.app_state == .won {
+		app.draw_won_circles()
+	}
 	app.gg.end()
 }
 
