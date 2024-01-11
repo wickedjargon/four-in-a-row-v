@@ -351,7 +351,6 @@ fn (mut app App) update_app_state() {
 }
 
 fn (mut app App) update_game_board() {
-	app.print_game_board()
 	for row_number := game_board_height - 1; row_number >= 0; row_number-- {
 		if app.game_board[app.column_number][row_number] == u8(0) {
 			app.game_board[app.column_number][row_number] = app.current_player
