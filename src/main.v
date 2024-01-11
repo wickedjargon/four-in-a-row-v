@@ -401,36 +401,37 @@ fn on_event(e &gg.Event, mut app App) {
 			.q {
 				app.gg.quit()
 			}
-			._0 {
+			._7 {
 				app.update_game(u8(0))
 			}
-			._1 {
+			._6 {
 				app.update_game(u8(1))
 			}
-			._2 {
+			._5 {
 				app.update_game(u8(2))
 			}
-			._3 {
+			._4 {
 				app.update_game(u8(3))
 			}
-			._4 {
+			._3 {
 				app.update_game(u8(4))
 			}
-			._5 {
+			._2 {
 				app.update_game(u8(5))
 			}
-			._6 {
+			._1 {
 				app.update_game(u8(6))
 			}
 			else {}
 		}
-	} else {
+	} else if e.typ == .key_up && app.app_state == .won {
 		match e.key_code {
 			.q {
 				app.gg.quit()
 			}
 			.r {
 				app.restart_game()
+				app.print_game_board()
 			}
 			else {}
 		}
