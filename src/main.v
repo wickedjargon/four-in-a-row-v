@@ -384,7 +384,7 @@ fn (app App) print_game_board() {
 
 fn (mut app App) restart_game() {
 	app.app_state = .play
-	app.game_board = new_game_board
+	app.game_board = new_game_board.clone()
 	app.current_player = 1
 	app.column_number = 0
 	app.row_number = 0
