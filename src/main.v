@@ -28,7 +28,7 @@ const text_config = gx.TextCfg{
 const circle_radius = f32(50.0)
 const circle_empty_cell = gx.rgb(15, 15, 15) // grey
 const circle_player1_non_connected = gx.dark_red
-const circle_player2_non_connected = gx.rgb(204, 204, 0)
+const circle_player2_non_connected = gx.rgb(139, 128, 0)
 
 const circle_player1_connected = gx.rgb(238, 75, 43)
 const circle_player2_connected = gx.rgb(255, 255, 102)
@@ -50,7 +50,7 @@ struct App {
 mut:
 	gg                   &gg.Context = unsafe { nil }
 	app_state            AppState    = .play
-	game_board           [][]u8      = new_game_board
+	game_board           [][]u8      = new_game_board.clone()
 	current_player       u8 = 1
 	column_number        u8
 	row_number           u8
