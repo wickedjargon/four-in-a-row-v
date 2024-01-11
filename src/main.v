@@ -116,11 +116,18 @@ fn (mut app App) draw_won_circles() {
 	// draw circles
 	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
 	mut y_coord := f32(150.0)
-	mut loop_counter := 0
 	for column_number, column in app.game_board {
 		for row_number, _ in column {
 			if [u8(column_number), u8(row_number)] in app.winning_coords {
-				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius, gx.white)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 0.5, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 1, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 1.5, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 2, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 2.5, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 3, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 3.5, gx.yellow)
+				app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + 4, gx.yellow)
 			}
 			y_coord = y_coord + 100.0
 		}
