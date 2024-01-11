@@ -226,6 +226,8 @@ fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
 	for {
 		if app.game_board[column_number][row_number] == app.current_player {
 			consecutives_count = consecutives_count + 1
+		} else {
+			break
 		}
 
 		if row_number == u8(0) {
@@ -272,6 +274,60 @@ fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
 
 	if consecutives_count > 4 {
 		app.app_state = .won
+
+		column_number = app.column_number
+		row_number = app.row_number
+
+		for {
+			if app.game_board[column_number][row_number] == app.current_player {
+				app.winning_coords << [column_number, row_number]
+			} else {
+				break
+			}
+
+			if row_number == u8(0) {
+				break
+			}
+			column_number = column_number + 1
+			row_number = row_number - 1
+			if column_number >= game_board_width {
+				break
+			}
+		}
+
+		column_number = app.column_number
+		row_number = app.row_number
+
+		// right side counting:
+		// game_board[column_number][row_number]
+		// game_board[column_number-1][row_number+1]
+
+		//     right side
+		// row #:  0  1  2  3  4  5
+		// col 0: [0, 0, 0, 0, 0, 0]
+		// col 1: [0, 0, 0, 0, 0, 1]
+		// col 2: [0, 0, 0, 0, 1, 0]
+		// col 3: [0, 0, 0, x, 0, 0]
+		// col 4: [0, 0, 0, 0, 0, 0]
+		// col 5: [0, 0, 0, 0, 0, 0]
+		// col 6: [0, 0, 0, 0, 0, 0]
+		//     left side
+
+		for {
+			if app.game_board[column_number][row_number] == app.current_player {
+				app.winning_coords << [column_number, row_number]
+			} else {
+				break
+			}
+			if column_number == 0 {
+				break
+			}
+			column_number = column_number - 1
+			row_number = row_number + 1
+			if row_number >= game_board_height {
+				break
+			}
+		}
 	}
 }
 
@@ -296,6 +352,8 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 	for {
 		if app.game_board[column_number][row_number] == app.current_player {
 			consecutives_count = consecutives_count + 1
+		} else {
+			break
 		}
 		column_number = column_number + 1
 		row_number = row_number + 1
@@ -324,6 +382,8 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 	for {
 		if app.game_board[column_number][row_number] == app.current_player {
 			consecutives_count = consecutives_count + 1
+		} else {
+			break
 		}
 		if column_number == 0 {
 			break
@@ -337,6 +397,55 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 
 	if consecutives_count > 4 {
 		app.app_state = .won
+
+		column_number = app.column_number
+		row_number = app.row_number
+
+		for {
+			if app.game_board[column_number][row_number] == app.current_player {
+				app.winning_coords << [column_number, row_number]
+			} else {
+				break
+			}
+			column_number = column_number + 1
+			row_number = row_number + 1
+			if column_number == game_board_width {
+				break
+			}
+			if row_number == game_board_height {
+				break
+			}
+		}
+
+		column_number = app.column_number
+		row_number = app.row_number
+
+		//     right side
+		// row #:  0  1  2  3  4  5
+		// col 0: [0, 1, 0, 0, 0, 0]
+		// col 1: [0, 0, 1, 0, 0, 0]
+		// col 2: [0, 0, 0, x, 0, 0]
+		// col 3: [0, 0, 0, 0, 0, 0]
+		// col 4: [0, 0, 0, 0, 0, 0]
+		// col 5: [0, 0, 0, 0, 0, 0]
+		// col 6: [0, 0, 0, 0, 0, 0]
+		//     left side
+
+		for {
+			if app.game_board[column_number][row_number] == app.current_player {
+				app.winning_coords << [column_number, row_number]
+			} else {
+				break
+			}
+			if column_number == 0 {
+				break
+			}
+			if row_number == 0 {
+				break
+			}
+			column_number = column_number - 1
+			row_number = row_number - 1
+		}
 	}
 }
 
