@@ -1,5 +1,4 @@
-// new serious version
-// TODO: purple chip removes row
+// TODO: two 64-bit integers can be used to represent the game_board with a bitboard
 
 module main
 
@@ -12,13 +11,13 @@ import gx
 
 const game_board_height = 6
 const game_board_width = 7
-const new_game_board = [][]u8{len: game_board_width, cap: game_board_width, init: []u8{len: game_board_height, cap: game_board_height, init: 0}}
-const new_winning_coords = [][]u8{len: 4, cap: 64, init: []u8{cap: 2}}
+const new_game_board = [][]int{len: game_board_width, cap: game_board_width, init: []int{len: game_board_height, cap: game_board_height, init: 0}}
+const new_winning_coords = [][]int{len: 0, cap: 64, init: []int{cap: 2}}
 
 const header_height = 1
 const cell_size = 100
 
-const text_config = gx.TextCfg{
+const text_config_instructions = gx.TextCfg{
 	color: gx.white
 	size: cell_size / 3
 	align: .center
@@ -27,6 +26,20 @@ const text_config = gx.TextCfg{
 
 const text_config_col_nums = gx.TextCfg{
 	color: gx.gray
+	size: cell_size / 3
+	align: .center
+	vertical_align: .top
+}
+
+const text_config_score = gx.TextCfg{
+	color: gx.dark_green
+	size: cell_size / 3
+	align: .left
+	vertical_align: .top
+}
+
+const text_config_score_lower = gx.TextCfg{
+	color: gx.dark_green
 	size: cell_size / 3
 	align: .center
 	vertical_align: .top
@@ -57,26 +70,29 @@ struct App {
 mut:
 	gg                   &gg.Context = unsafe { nil }
 	app_state            AppState    = .play
-	game_board           [][]u8      = new_game_board.clone()
-	current_player       u8 = 1
-	player1_score        u8
-	player2_score        u8
-	column_number        u8
-	row_number           u8
-	valid_move_count     u8
-	winning_coords       [][]u8 = new_winning_coords
-	winning_coords_debug [][]u8 = new_winning_coords
+	game_board           [][]int     = new_game_board.clone()
+	current_player       int = 1
+	score                map[int]int = map[int]int{}
+	column_number        int
+	row_number           int
+	move_count           int
+	winning_coords       [][]int = new_winning_coords
+	winning_coords_debug [][]int = new_winning_coords
 }
 
 ////////////////////
 // draw functoins //
 ////////////////////
 
-fn (app App) draw_header_instructions_message(title string, message string) {
-	app.gg.draw_text(instructions_x_coord, instructions_y_coord, title, text_config)
-	app.gg.draw_text(instructions_x_coord, instructions_y_coord + 30, message, text_config)
+fn (app App) draw_header_text(title string, message string) {
+	app.gg.draw_text(5, 0, 'Player 1', text_config_score)
+	app.gg.draw_text(40, 30, '${app.score[1]}', text_config_score_lower)
+	app.gg.draw_text(600, 0, 'Player 2', text_config_score)
+	app.gg.draw_text(637, 30, '${app.score[2]}', text_config_score_lower)
+	app.gg.draw_text(instructions_x_coord, instructions_y_coord, title, text_config_instructions)
+	app.gg.draw_text(instructions_x_coord, instructions_y_coord + 30, message, text_config_instructions)
 	mut x_coord_col_nums := 45
-	for i in 0..game_board_width {
+	for i in 0 .. game_board_width {
 		app.gg.draw_text(x_coord_col_nums, instructions_y_coord + 60, (i + 1).str(), text_config_col_nums)
 		x_coord_col_nums = x_coord_col_nums + 100
 	}
@@ -89,13 +105,13 @@ fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
 fn (mut app App) draw_header() {
 	match app.app_state {
 		.tie {
-			app.draw_header_instructions_message("Tie Game",  "Press 'r' to restart")
+			app.draw_header_text('Tie Game', "Press 'r' to restart")
 		}
 		.won {
-			app.draw_header_instructions_message("Player ${app.current_player} won", "Press 'r' to restart")
+			app.draw_header_text('Player ${app.current_player} won', "Press 'r' to restart")
 		}
 		.play {
-			app.draw_header_instructions_message("Player ${app.current_player}", "Press a key between 1-7")
+			app.draw_header_text('Player ${app.current_player}', 'Press a key between 1-7')
 		}
 	}
 }
@@ -105,7 +121,7 @@ fn (mut app App) draw_board() {
 	app.gg.draw_rounded_rect_filled(0.0, cell_size, cell_size * game_board_width, cell_size * game_board_height,
 		circle_radius / 2, gx.dark_blue)
 
-	// draw circles
+	// draw discs
 	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
 	mut y_coord := f32(150.0)
 	for column in app.game_board {
@@ -130,7 +146,7 @@ fn (mut app App) draw_won_circles() {
 	mut y_coord := f32(150.0)
 	for column_number, column in app.game_board {
 		for row_number, _ in column {
-			if [u8(column_number), u8(row_number)] in app.winning_coords {
+			if [column_number, row_number] in app.winning_coords {
 				mut inc := f32(0.0)
 				for _ in 0 .. 7 {
 					app.gg.draw_circle_empty(x_coord, y_coord, circle_radius + inc, gx.yellow)
@@ -144,78 +160,61 @@ fn (mut app App) draw_won_circles() {
 	}
 }
 
+fn (mut app App) update_game_won(winning_coords [][]int) {
+	app.app_state = .won
+	app.score[app.current_player] = app.score[app.current_player] + 1
+	app.winning_coords << winning_coords
+}
+
 fn (mut app App) game_won_vertical() {
-	mut consecutives_count := u8(0)
-	for cell in app.game_board[app.column_number][app.row_number..game_board_height] {
-		if cell == app.current_player {
-			consecutives_count = consecutives_count + 1
+	mut winning_coords := new_winning_coords.clone()
+	for row_number := app.row_number; row_number < game_board_height; row_number++ {
+		if app.game_board[app.column_number][row_number] == app.current_player {
+			winning_coords << [app.column_number, row_number]
 		} else {
 			break
 		}
 	}
-	if consecutives_count > 3 {
-		app.app_state = .won
-		for row_number := app.row_number; row_number < game_board_height; row_number++ {
-			if app.game_board[app.column_number][row_number] == app.current_player {
-				app.winning_coords << [u8(app.column_number), u8(row_number)]
-			} else {
-				break
-			}
-		}
+	if winning_coords.len > 3 {
+		app.update_game_won(winning_coords)
 	}
 }
 
 fn (mut app App) game_won_horizontal() {
-	mut consecutives_count := u8(0)
-	// left side of last disc
-	for column_number in app.column_number .. game_board_width {
+	mut winning_coords := new_winning_coords.clone()
+
+	// (++) left side
+	for column_number := app.column_number; column_number < game_board_width; column_number++ {
 		if app.game_board[column_number][app.row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
+			winning_coords << [column_number, app.row_number]
 		} else {
 			break
 		}
 	}
-	// right side of last disc
+
+	// (--) right side
 	for column_number := app.column_number; column_number >= 0; column_number-- {
 		if app.game_board[column_number][app.row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
+			winning_coords << [column_number, app.row_number]
 		} else {
 			break
 		}
-		// prevents integer underflow
-		if column_number == 0 {
-			break
-		}
 	}
-	// each loop counts app.column_number once. so we use 4 here, not 3.
-	if consecutives_count > 4 {
-		app.app_state = .won
-		for column_number in app.column_number .. game_board_width {
-			if app.game_board[column_number][app.row_number] == app.current_player {
-				app.winning_coords << [column_number, app.row_number]
-			} else {
-				break
-			}
-		}
 
-		for column_number := app.column_number; column_number >= 0; column_number-- {
-			if app.game_board[column_number][app.row_number] == app.current_player {
-				app.winning_coords << [column_number, app.row_number]
-			} else {
-				break
-			}
-			// prevents integer underflow
-			if column_number == 0 {
-				break
-			}
-		}
+	// since app.game_board[column_number][app.row_number] is counted twice
+	// (once per for loop), we use 4 below, not 3
+	if winning_coords.len > 4 {
+		app.update_game_won(winning_coords)
 	}
 }
 
 fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
-	// left side counting:
-	// game_board[column_number][row_number]
-	// game_board[column_number+1][row_number-1]
+	mut winning_coords := new_winning_coords.clone()
+
+	// column_number++
+	// row_number--
+	//
+	// left side counting
 	//     right side
 	// row #:  0  1  2  3  4  5
 	// col 0: [0, 0, 0, 0, 0, 0]
@@ -227,34 +226,20 @@ fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
 	// col 6: [1, 0, 0, 0, 0, 0]
 	//     left side
 
-	mut consecutives_count := 0
-	mut column_number := app.column_number
-	mut row_number := app.row_number
-
-	for {
+	for column_number, row_number := app.column_number, app.row_number;
+		column_number < game_board_width && row_number >= 0; column_number, row_number =
+		column_number + 1, row_number - 1 {
 		if app.game_board[column_number][row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
+			winning_coords << [column_number, row_number]
 		} else {
-			break
-		}
-
-		if row_number == u8(0) {
-			break
-		}
-		column_number = column_number + 1
-		row_number = row_number - 1
-		if column_number >= game_board_width {
 			break
 		}
 	}
 
-	column_number = app.column_number
-	row_number = app.row_number
-
-	// right side counting:
-	// game_board[column_number][row_number]
-	// game_board[column_number-1][row_number+1]
-
+	// column_number--
+	// row_number++
+	//
+	// right side counting
 	//     right side
 	// row #:  0  1  2  3  4  5
 	// col 0: [0, 0, 0, 0, 0, 0]
@@ -266,80 +251,23 @@ fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
 	// col 6: [0, 0, 0, 0, 0, 0]
 	//     left side
 
-	for {
+	for column_number, row_number := app.column_number, app.row_number; column_number >= 0
+		&& row_number < game_board_height; column_number, row_number = column_number - 1,
+		row_number + 1 {
 		if app.game_board[column_number][row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
-		}
-		if column_number == 0 {
-			break
-		}
-		column_number = column_number - 1
-		row_number = row_number + 1
-		if row_number >= game_board_height {
+			winning_coords << [column_number, row_number]
+		} else {
 			break
 		}
 	}
-
-	if consecutives_count > 4 {
-		app.app_state = .won
-
-		column_number = app.column_number
-		row_number = app.row_number
-
-		for {
-			if app.game_board[column_number][row_number] == app.current_player {
-				app.winning_coords << [column_number, row_number]
-			} else {
-				break
-			}
-
-			if row_number == u8(0) {
-				break
-			}
-			column_number = column_number + 1
-			row_number = row_number - 1
-			if column_number >= game_board_width {
-				break
-			}
-		}
-
-		column_number = app.column_number
-		row_number = app.row_number
-
-		// right side counting:
-		// game_board[column_number][row_number]
-		// game_board[column_number-1][row_number+1]
-
-		//     right side
-		// row #:  0  1  2  3  4  5
-		// col 0: [0, 0, 0, 0, 0, 0]
-		// col 1: [0, 0, 0, 0, 0, 1]
-		// col 2: [0, 0, 0, 0, 1, 0]
-		// col 3: [0, 0, 0, x, 0, 0]
-		// col 4: [0, 0, 0, 0, 0, 0]
-		// col 5: [0, 0, 0, 0, 0, 0]
-		// col 6: [0, 0, 0, 0, 0, 0]
-		//     left side
-
-		for {
-			if app.game_board[column_number][row_number] == app.current_player {
-				app.winning_coords << [column_number, row_number]
-			} else {
-				break
-			}
-			if column_number == 0 {
-				break
-			}
-			column_number = column_number - 1
-			row_number = row_number + 1
-			if row_number >= game_board_height {
-				break
-			}
-		}
+	if winning_coords.len > 4 {
+		app.update_game_won(winning_coords)
 	}
 }
 
 fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
+	mut winning_coords := new_winning_coords.clone()
+
 	// left side counting
 	//
 	//     right side
@@ -353,28 +281,15 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 	// col 6: [0, 0, 0, 0, 0, 0]
 	//     left side
 
-	mut consecutives_count := 0
-	mut column_number := app.column_number
-	mut row_number := app.row_number
-
-	for {
+	for column_number, row_number := app.column_number, app.row_number;
+		column_number < game_board_width && row_number < game_board_height; column_number, row_number =
+		column_number + 1, row_number + 1 {
 		if app.game_board[column_number][row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
+			winning_coords << [column_number, row_number]
 		} else {
 			break
 		}
-		column_number = column_number + 1
-		row_number = row_number + 1
-		if column_number == game_board_width {
-			break
-		}
-		if row_number == game_board_height {
-			break
-		}
 	}
-
-	column_number = app.column_number
-	row_number = app.row_number
 
 	//     right side
 	// row #:  0  1  2  3  4  5
@@ -387,73 +302,16 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 	// col 6: [0, 0, 0, 0, 0, 0]
 	//     left side
 
-	for {
+	for column_number, row_number := app.column_number, app.row_number; column_number >= 0
+		&& row_number >= 0; column_number, row_number = column_number - 1, row_number - 1 {
 		if app.game_board[column_number][row_number] == app.current_player {
-			consecutives_count = consecutives_count + 1
+			winning_coords << [column_number, row_number]
 		} else {
 			break
 		}
-		if column_number == 0 {
-			break
-		}
-		if row_number == 0 {
-			break
-		}
-		column_number = column_number - 1
-		row_number = row_number - 1
 	}
-
-	if consecutives_count > 4 {
-		app.app_state = .won
-
-		column_number = app.column_number
-		row_number = app.row_number
-
-		for {
-			if app.game_board[column_number][row_number] == app.current_player {
-				app.winning_coords << [column_number, row_number]
-			} else {
-				break
-			}
-			column_number = column_number + 1
-			row_number = row_number + 1
-			if column_number == game_board_width {
-				break
-			}
-			if row_number == game_board_height {
-				break
-			}
-		}
-
-		column_number = app.column_number
-		row_number = app.row_number
-
-		//     right side
-		// row #:  0  1  2  3  4  5
-		// col 0: [0, 1, 0, 0, 0, 0]
-		// col 1: [0, 0, 1, 0, 0, 0]
-		// col 2: [0, 0, 0, x, 0, 0]
-		// col 3: [0, 0, 0, 0, 0, 0]
-		// col 4: [0, 0, 0, 0, 0, 0]
-		// col 5: [0, 0, 0, 0, 0, 0]
-		// col 6: [0, 0, 0, 0, 0, 0]
-		//     left side
-
-		for {
-			if app.game_board[column_number][row_number] == app.current_player {
-				app.winning_coords << [column_number, row_number]
-			} else {
-				break
-			}
-			if column_number == 0 {
-				break
-			}
-			if row_number == 0 {
-				break
-			}
-			column_number = column_number - 1
-			row_number = row_number - 1
-		}
+	if winning_coords.len > 4 {
+		app.update_game_won(winning_coords)
 	}
 }
 
@@ -462,29 +320,29 @@ fn (mut app App) update_app_state() {
 	app.game_won_horizontal()
 	app.game_won_diagonal_top_left_to_bottom_right()
 	app.game_won_diagonal_bottom_left_to_top_right()
-	if app.app_state == .play && app.valid_move_count >= game_board_height * game_board_width {
+	if app.app_state == .play && app.move_count >= game_board_height * game_board_width {
 		app.app_state = .tie
 	}
 }
 
 fn (mut app App) update_game_board() {
 	for row_number := game_board_height - 1; row_number >= 0; row_number-- {
-		if app.game_board[app.column_number][row_number] == u8(0) {
+		if app.game_board[app.column_number][row_number] == 0 {
 			app.game_board[app.column_number][row_number] = app.current_player
-			app.row_number = u8(row_number)
+			app.row_number = row_number
 			break
 		}
 	}
 }
 
-fn (mut app App) update_game(column_number u8) {
+fn (mut app App) update_game(column_number int) {
 	if app.game_board[column_number][0] == 0 {
 		app.column_number = column_number
 		app.update_game_board()
-		app.valid_move_count = app.valid_move_count + 1
+		app.move_count = app.move_count + 1
 		app.update_app_state()
 		if app.app_state == .play {
-			app.current_player = if app.current_player == u8(1) { u8(2) } else { u8(1) }
+			app.current_player = if app.current_player == 1 { 2 } else { 1 }
 		}
 	}
 }
@@ -501,10 +359,18 @@ fn (app App) print_game_board() {
 fn (mut app App) restart_game() {
 	app.app_state = .play
 	app.game_board = new_game_board.clone()
+	app.winning_coords = new_winning_coords.clone()
 	app.current_player = 1
 	app.column_number = 0
 	app.row_number = 0
-	app.valid_move_count = 0
+	app.move_count = 0
+}
+
+fn (app App) debug() {
+	app.print_game_board()
+	dump(app.column_number)
+	dump(app.row_number)
+	dump(app.winning_coords)
 }
 
 ///////////////////////
@@ -518,36 +384,35 @@ fn on_event(e &gg.Event, mut app App) {
 				app.gg.quit()
 			}
 			._7 {
-				app.update_game(u8(0))
+				app.update_game(0)
 			}
 			._6 {
-				app.update_game(u8(1))
+				app.update_game(1)
 			}
 			._5 {
-				app.update_game(u8(2))
+				app.update_game(2)
 			}
 			._4 {
-				app.update_game(u8(3))
+				app.update_game(3)
 			}
 			._3 {
-				app.update_game(u8(4))
+				app.update_game(4)
 			}
 			._2 {
-				app.update_game(u8(5))
+				app.update_game(5)
 			}
 			._1 {
-				app.update_game(u8(6))
+				app.update_game(6)
 			}
 			else {}
 		}
-	} else if e.typ == .key_up && app.app_state == .won {
+	} else if e.typ == .key_up && app.app_state != .play {
 		match e.key_code {
 			.q {
 				app.gg.quit()
 			}
 			.r {
 				app.restart_game()
-				app.print_game_board()
 			}
 			else {}
 		}
