@@ -5,10 +5,6 @@ module main
 import gg
 import gx
 
-///////////
-// const //
-///////////
-
 const game_board_height = 6
 const game_board_width = 7
 const new_game_board = [][]int{len: game_board_width, cap: game_board_width, init: []int{len: game_board_height, cap: game_board_height, init: 0}}
@@ -56,10 +52,6 @@ const circle_player2_connected = gx.rgb(255, 255, 102)
 const instructions_x_coord = (cell_size * game_board_width) / 2
 const instructions_y_coord = cell_size / 20
 
-/////////////
-// structs //
-/////////////
-
 enum AppState {
 	play
 	tie
@@ -80,10 +72,6 @@ mut:
 	winning_coords_debug [][]int = new_winning_coords
 }
 
-////////////////////
-// draw functoins //
-////////////////////
-
 fn (app App) draw_header_text(title string, message string) {
 	app.gg.draw_text(5, 0, 'Player 1', text_config_score)
 	app.gg.draw_text(40, 30, '${app.score[1]}', text_config_score_lower)
@@ -102,7 +90,7 @@ fn (app App) draw_circle(x_coord f32, y_coord f32, color gx.Color) {
 	app.gg.draw_circle_filled(x_coord, y_coord, circle_radius, color)
 }
 
-fn (mut app App) draw_header() {
+fn (app App) draw_header() {
 	match app.app_state {
 		.tie {
 			app.draw_header_text('Tie Game', "Press 'r' to restart")
@@ -116,7 +104,7 @@ fn (mut app App) draw_header() {
 	}
 }
 
-fn (mut app App) draw_board() {
+fn (app App) draw_board() {
 	// draw background
 	app.gg.draw_rounded_rect_filled(0.0, cell_size, cell_size * game_board_width, cell_size * game_board_height,
 		circle_radius / 2, gx.dark_blue)
@@ -140,7 +128,7 @@ fn (mut app App) draw_board() {
 	}
 }
 
-fn (mut app App) draw_won_circles() {
+fn (app App) draw_won_circles() {
 	// draw circles
 	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
 	mut y_coord := f32(150.0)
@@ -160,13 +148,7 @@ fn (mut app App) draw_won_circles() {
 	}
 }
 
-fn (mut app App) update_game_won(winning_coords [][]int) {
-	app.app_state = .won
-	app.score[app.current_player] = app.score[app.current_player] + 1
-	app.winning_coords << winning_coords
-}
-
-fn (mut app App) game_won_vertical() {
+fn (app App) winning_coords_vertical() [][]int {
 	mut winning_coords := new_winning_coords.clone()
 	for row_number := app.row_number; row_number < game_board_height; row_number++ {
 		if app.game_board[app.column_number][row_number] == app.current_player {
@@ -175,12 +157,10 @@ fn (mut app App) game_won_vertical() {
 			break
 		}
 	}
-	if winning_coords.len > 3 {
-		app.update_game_won(winning_coords)
-	}
+	return winning_coords
 }
 
-fn (mut app App) game_won_horizontal() {
+fn (app App) winning_coords_horizontal() [][]int {
 	mut winning_coords := new_winning_coords.clone()
 
 	// (++) left side
@@ -193,7 +173,10 @@ fn (mut app App) game_won_horizontal() {
 	}
 
 	// (--) right side
-	for column_number := app.column_number; column_number >= 0; column_number-- {
+	for i, column_number := 0, app.column_number; column_number >= 0; i, column_number = i + 1, column_number - 1 {
+		if i == 0 {
+			continue // already counted the last played disc. don't count it twice
+		}
 		if app.game_board[column_number][app.row_number] == app.current_player {
 			winning_coords << [column_number, app.row_number]
 		} else {
@@ -201,14 +184,10 @@ fn (mut app App) game_won_horizontal() {
 		}
 	}
 
-	// since app.game_board[column_number][app.row_number] is counted twice
-	// (once per for loop), we use 4 below, not 3
-	if winning_coords.len > 4 {
-		app.update_game_won(winning_coords)
-	}
+	return winning_coords
 }
 
-fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
+fn (app App) winning_coords_diagonal_top_left_to_bottom_right() [][]int {
 	mut winning_coords := new_winning_coords.clone()
 
 	// column_number++
@@ -251,21 +230,22 @@ fn (mut app App) game_won_diagonal_top_left_to_bottom_right() {
 	// col 6: [0, 0, 0, 0, 0, 0]
 	//     left side
 
-	for column_number, row_number := app.column_number, app.row_number; column_number >= 0
-		&& row_number < game_board_height; column_number, row_number = column_number - 1,
+	for i, column_number, row_number := 0, app.column_number, app.row_number; column_number >= 0
+		&& row_number < game_board_height; i, column_number, row_number = i + 1, column_number - 1,
 		row_number + 1 {
+		if i == 0 {
+			continue // already counted the last played disc. don't count it twice
+		}
 		if app.game_board[column_number][row_number] == app.current_player {
 			winning_coords << [column_number, row_number]
 		} else {
 			break
 		}
 	}
-	if winning_coords.len > 4 {
-		app.update_game_won(winning_coords)
-	}
+	return winning_coords
 }
 
-fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
+fn (app App) winning_coords_diagonal_bottom_left_to_top_right() [][]int {
 	mut winning_coords := new_winning_coords.clone()
 
 	// left side counting
@@ -302,25 +282,33 @@ fn (mut app App) game_won_diagonal_bottom_left_to_top_right() {
 	// col 6: [0, 0, 0, 0, 0, 0]
 	//     left side
 
-	for column_number, row_number := app.column_number, app.row_number; column_number >= 0
-		&& row_number >= 0; column_number, row_number = column_number - 1, row_number - 1 {
+	for i, column_number, row_number := 0, app.column_number, app.row_number; column_number >= 0
+		&& row_number >= 0; i, column_number, row_number = i + 1, column_number - 1, row_number - 1 {
+		if i == 0 {
+			continue // already counted the last played disc. don't count it twice
+		}
 		if app.game_board[column_number][row_number] == app.current_player {
 			winning_coords << [column_number, row_number]
 		} else {
 			break
 		}
 	}
-	if winning_coords.len > 4 {
-		app.update_game_won(winning_coords)
-	}
+	return winning_coords
 }
 
 fn (mut app App) update_app_state() {
-	app.game_won_vertical()
-	app.game_won_horizontal()
-	app.game_won_diagonal_top_left_to_bottom_right()
-	app.game_won_diagonal_bottom_left_to_top_right()
-	if app.app_state == .play && app.move_count >= game_board_height * game_board_width {
+	winning_coords := [app.winning_coords_vertical(), app.winning_coords_horizontal(),
+		app.winning_coords_diagonal_top_left_to_bottom_right(),
+		app.winning_coords_diagonal_bottom_left_to_top_right()]
+	for current_winning_coords in winning_coords {
+		if current_winning_coords.len > 3 {
+			app.winning_coords << current_winning_coords
+		}
+	}
+	if app.winning_coords.len > 0 {
+		app.app_state = .won
+		app.score[app.current_player] = app.score[app.current_player] + 1
+	} else if app.move_count >= game_board_height * game_board_width {
 		app.app_state = .tie
 	}
 }
@@ -351,7 +339,7 @@ fn (app App) print_game_board() {
 	println('    right side')
 	println('row #:  0  1  2  3  4  5')
 	for i, column in app.game_board {
-		println('col ${i}: ${column}')
+		println('col ${i}: ${column},')
 	}
 	println('    left side')
 }
@@ -366,23 +354,9 @@ fn (mut app App) restart_game() {
 	app.move_count = 0
 }
 
-fn (app App) debug() {
-	app.print_game_board()
-	dump(app.column_number)
-	dump(app.row_number)
-	dump(app.winning_coords)
-}
-
-///////////////////////
-// context functions //
-///////////////////////
-
 fn on_event(e &gg.Event, mut app App) {
 	if e.typ == .key_up && app.app_state == .play {
 		match e.key_code {
-			.q {
-				app.gg.quit()
-			}
 			._7 {
 				app.update_game(0)
 			}
@@ -404,19 +378,24 @@ fn on_event(e &gg.Event, mut app App) {
 			._1 {
 				app.update_game(6)
 			}
-			else {}
-		}
-	} else if e.typ == .key_up && app.app_state != .play {
-		match e.key_code {
-			.q {
-				app.gg.quit()
-			}
 			.r {
 				app.restart_game()
 			}
-			else {}
+			.q {
+				app.gg.quit()
+			} else {}
 		}
-	}
+		} else if e.typ == .key_up && app.app_state != .play {
+			match e.key_code {
+			.r {
+				app.restart_game()
+			}
+			.q {
+				app.gg.quit()
+			}
+			else {}
+			}
+		}
 }
 
 fn frame(mut app App) {
@@ -428,10 +407,6 @@ fn frame(mut app App) {
 	}
 	app.gg.end()
 }
-
-//////////
-// main //
-//////////
 
 fn main() {
 	mut app := &App{}
