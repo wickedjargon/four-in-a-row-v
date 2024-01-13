@@ -1,7 +1,6 @@
 // TODO: two 64-bit integers can be used to represent the game_board with a bitboard
 // DONE: list of free columns
 // DONE: abstracted away all win checker functions into one, get_winning_coords.
-// DONE: make 
 
 module main
 
@@ -10,9 +9,11 @@ import gx
 
 const game_board_height = 6
 const game_board_width = 7
+
 const new_game_board = [][]int{len: game_board_width, cap: game_board_width, init: []int{len: game_board_height, cap: game_board_height, init: 0}}
 const new_winning_coords = [][]int{len: 0, cap: game_board_height * game_board_width, init: []int{cap: 2}}
 const new_next_rows = []int{len: game_board_width, cap: game_board_width, init: game_board_height - 1}
+const new_played_coords = {'column': 0, 'row': 0}
 
 const header_height = 1
 const cell_size = 100
@@ -69,12 +70,10 @@ mut:
 	game_board           [][]int     = new_game_board.clone()
 	current_player       int = 1
 	score                map[int]int = map[int]int{}
-	column_number        int
-	row_number           int
 	winning_coords       [][]int = new_winning_coords
-	winning_coords_debug [][]int = new_winning_coords
 	next_rows            []int   = new_next_rows.clone()
 	move_count           int
+	played_coords map[string]int = new_played_coords.clone()
 }
 
 fn (app App) draw_header_text(title string, message string) {
@@ -154,8 +153,8 @@ fn (app App) draw_won_circles() {
 }
 
 fn (app App) get_winning_coords(column_number_inc int, row_number_inc int) [][]int {
-	mut column_number := app.column_number
-	mut row_number := app.row_number
+	mut column_number := app.played_coords['column']
+	mut row_number := app.played_coords['row']
 	mut winning_coords := new_winning_coords.clone()
 	for {
 		if app.game_board[column_number][row_number] == app.current_player {
@@ -198,9 +197,9 @@ fn (mut app App) update_app_state() {
 
 fn (mut app App) update_game_board() {
 	for row_number := game_board_height - 1; row_number >= 0; row_number-- {
-		if app.game_board[app.column_number][row_number] == 0 {
-			app.game_board[app.column_number][row_number] = app.current_player
-			app.row_number = row_number
+		if app.game_board[app.played_coords['column']][row_number] == 0 {
+			app.game_board[app.played_coords['column']][row_number] = app.current_player
+			app.played_coords['row'] = row_number
 			break
 		}
 	}
@@ -208,10 +207,10 @@ fn (mut app App) update_game_board() {
 
 fn (mut app App) update_game(column_number int) {
 	if app.next_rows[column_number] >= 0 {
-		app.column_number = column_number
-		app.row_number = app.next_rows[column_number]
+		app.played_coords['column'] = column_number
+		app.played_coords['row'] = app.next_rows[column_number]
 		app.next_rows[column_number] = app.next_rows[column_number] - 1
-		app.game_board[app.column_number][app.row_number] = app.current_player
+		app.game_board[app.played_coords['column']][app.played_coords['row']] = app.current_player
 		app.move_count = app.move_count + 1
 		app.update_app_state()
 		if app.app_state == .play {
@@ -234,8 +233,9 @@ fn (mut app App) restart_game() {
 	app.game_board = new_game_board.clone()
 	app.winning_coords = new_winning_coords.clone()
 	app.current_player = 1
-	app.column_number = 0
-	app.row_number = 0
+	app.played_coords = new_played_coords.clone()
+	app.played_coords['column'] = 0
+	app.played_coords['row'] = 0
 	app.next_rows = new_next_rows.clone()
 	app.move_count = 0
 }
