@@ -12,46 +12,38 @@ const game_board_width = 7
 const new_game_board = [][]int{len: game_board_width, cap: game_board_width, init: []int{len: game_board_height, cap: game_board_height, init: 0}}
 const new_winning_coords = [][]int{len: 0, cap: game_board_height * game_board_width, init: []int{cap: 2}}
 const new_next_rows = []int{len: game_board_width, cap: game_board_width, init: game_board_height - 1}
-
 const header_height = 1
 const cell_size = 100
-
 const text_config_instructions = gx.TextCfg{
 	color: gx.white
 	size: cell_size / 3
 	align: .center
 	vertical_align: .top
 }
-
 const text_config_col_nums = gx.TextCfg{
 	color: gx.gray
 	size: cell_size / 3
 	align: .center
 	vertical_align: .top
 }
-
 const text_config_score = gx.TextCfg{
 	color: gx.dark_green
 	size: cell_size / 3
 	align: .left
 	vertical_align: .top
 }
-
 const text_config_score_lower = gx.TextCfg{
 	color: gx.dark_green
 	size: cell_size / 3
 	align: .center
 	vertical_align: .top
 }
-
 const circle_radius = f32(f32(cell_size / 2))
 const circle_empty_cell = gx.rgb(15, 15, 15) // grey
 const circle_player1_non_connected = gx.dark_red
 const circle_player2_non_connected = gx.rgb(139, 128, 0)
-
 const circle_player1_connected = gx.rgb(238, 75, 43)
 const circle_player2_connected = gx.rgb(255, 255, 102)
-
 const instructions_x_coord = (cell_size * game_board_width) / 2
 const instructions_y_coord = cell_size / 20
 
@@ -112,7 +104,6 @@ fn (app App) draw_board() {
 	// draw background
 	app.gg.draw_rounded_rect_filled(0.0, cell_size, cell_size * game_board_width, cell_size * game_board_height,
 		circle_radius / 2, gx.dark_blue)
-
 	// draw discs
 	mut x_coord := f32(50.0) + (100 * (game_board_width - 1))
 	mut y_coord := f32(150.0)
@@ -185,10 +176,8 @@ fn (mut app App) update_app_state() {
 	 	[[1, 0],    // horizontal (left side)
 		 [-1, 0]],  // horizontal (right side)
 		[[0, 1],    // vertical (below)
-		 [0, -1]]   // vertical (above) (is ignored)
+		 [0, -1]]   // vertical (above)
 	]
-
-
 	for indices_increment_pair_pair in indices_increment_pair_pairs {
 		winning_coords = app.get_winning_coords(indices_increment_pair_pair[0][0], indices_increment_pair_pair[0][1])
 		winning_coords << app.get_winning_coords(indices_increment_pair_pair[1][0], indices_increment_pair_pair[1][1])
@@ -196,8 +185,6 @@ fn (mut app App) update_app_state() {
 			app.winning_coords << winning_coords
 		}
 	}
-
-	 	// [0, 1]] // vertical
 	if app.winning_coords.len > 0 {
 		app.app_state = .won
 		app.score[app.current_player] = app.score[app.current_player] + 1
@@ -271,7 +258,6 @@ fn on_event(e &gg.Event, mut app App) {
         }
     }
 }
-
 
 fn frame(mut app App) {
 	app.gg.begin()
