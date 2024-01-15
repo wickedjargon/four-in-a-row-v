@@ -148,7 +148,7 @@ fn (app App) get_winning_coords(column_number_inc int, row_number_inc int) [][]i
 	mut row_number := app.row_number
 	mut winning_coords := new_winning_coords.clone()
 	if column_number_inc == 0 && row_number_inc == -1 {
-		return [[app.column_number, app.row_number]]
+		return [[app.column_number, app.row_number]] // no need to ever count up from the last inserted disc
 	}
 	for {
 		if app.game_board[column_number][row_number] == app.current_player {
@@ -204,7 +204,7 @@ fn (mut app App) update_game_board() {
 }
 
 fn (mut app App) update_game(column_number int) {
-	if app.next_rows[column_number] >= 0 {
+	if app.next_rows[column_number] >= 0 { // because app.next_rows stores the next available row per column. `0` is the last row
 		app.column_number = column_number
 		app.row_number = app.next_rows[column_number]
 		app.next_rows[column_number] = app.next_rows[column_number] - 1
